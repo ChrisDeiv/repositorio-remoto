@@ -1,0 +1,99 @@
+# grovepi_lcd_dht.py
+#
+# This project uses the Grove RGB LED Display and the Grove DHT Sensor
+# to show temperature and humidity on the display.
+
+import decimal
+import math
+from grovepi import *
+from grove_rgb_lcd import *
+
+dht_sensor_port = 7  # Connect the DHT sensor to port 7
+lastTemp = 0.1       # initialize a floating point temp variable
+lastHum = 0.1        # initialize a floating Point humidity variable
+tooLow = 62.0        # Lower limit in Fahrenheit
+justRight = 68.0     # Perfect Temp in Fahrenheit
+tooHigh = 74.0       # Temp Too High
+
+
+# Function Definitions
+def CtoF(tempc):
+    """This converts Celsius to Fahrenheit"""
+    tempf = round((tempc * 1.8) + 32, 2)
+    return tempf
+
+
+def FtoC(tempf):
+    """This converts Fahrenheit to Celsius"""
+    tempc = round((tempf - 32) / 1.8, 2)
+    return tempc
+
+
+def calcColorAdj(variance):
+    """Calc the adjustment value of the background color"""
+    factor = 42.5  # 6 degrees mapped to 255 values → factor for 12-degree spread
+    adj = abs(int(factor * variance))
+    if adj > 255:
+        adj = 255
+    return adj
+
+
+def calcBG(ftemp):
+    """Calculates the color value for the background"""
+    variance = ftemp - justRight  # Calculate the variance
+    adj = calcColorAdj(variance)  # Scale it to 8-bit int
+
+    if variance < 0:      # Too cold
+        bgR = 0
+        bgB = adj
+        bgG = 255 - adj
+
+    elif variance == 0:   # Perfect
+        bgR = 0
+        bgB = 0
+        bgG = 255
+
+    else:                 # Too hot
+        bgB = 0
+        bgR = adj
+        bgG = 255 - adj
+
+    return [bgR, bgG, bgB]
+
+
+while True:
+    try:
+        temp = 0.01
+        hum = 0.01
+
+        # Get the temperature and humidity from the DHT sensor
+        temp, hum = dht(dht_sensor_port, 1)
+
+        # Check for changes and valid numbers
+        if (
+            CtoF(temp) != lastTemp
+            and hum != lastHum
+            and not math.isnan(temp)
+            and not math.isnan(hum)
+        ):
+
+            print("lowC :", FtoC(tooLow), "C\t\t", "rightC :", FtoC(justRight), "C\t\t", "highC :", FtoC(tooHigh), "C")
+            print("lowF :", tooLow, "F\t\tjustRight :", justRight, "F\t\ttoHigh :", tooHigh, "F")
+            print("tempC :", temp, "C\t\ttempF :", CtoF(temp), "F")
+            print("Humidity :", hum, "%\n")
+
+            lastTemp = CtoF(temp)
+            lastHum = hum
+
+            # Update background color
+            rgb = calcBG(CtoF(temp))
+            setRGB(rgb[0], rgb[1], rgb[2])
+
+            # Update LCD message
+            setText_norefresh(
+                "Temp:" + str(CtoF(temp)) + "F\n" +
+                "Humidity:" + str(hum) + "%"
+            )
+
+    except IOError:
+        print("Error")
