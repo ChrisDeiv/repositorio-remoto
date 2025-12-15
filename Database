@@ -1,0 +1,107 @@
+import pymysql
+
+# =======================
+# CONFIGURACIÓN BD
+# =======================
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "sensores_user",
+    "password": "univalle123",
+    "database": "sensores"
+}
+
+# =======================
+# CONEXIÓN
+# =======================
+def conectar():
+    return pymysql.connect(
+        host=DB_CONFIG["host"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        database=DB_CONFIG["database"],
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+# =======================
+# CREAR TABLAS
+# =======================
+def crear_tablas():
+    conn = conectar()
+    cursor = conn.cursor()
+
+    # Tabla de datos del sensor
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS datos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            temperatura FLOAT NOT NULL,
+            humedad FLOAT NOT NULL,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Tabla de usuarios
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            usuario VARCHAR(50) UNIQUE,
+            password VARCHAR(50)
+        )
+    """)
+
+    # Crear usuario admin si no existe
+    cursor.execute(
+        "SELECT id FROM usuarios WHERE usuario = %s",
+        ("admin",)
+    )
+    if cursor.fetchone() is None:
+        cursor.execute(
+            "INSERT INTO usuarios (usuario, password) VALUES (%s, %s)",
+            ("admin", "12345")
+        )
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# =======================
+# INSERTAR DATOS
+# =======================
+def insertar_dato(temp, hum):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO datos (temperatura, humedad) VALUES (%s, %s)",
+        (temp, hum)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# =======================
+# OBTENER ÚLTIMAS 10 LECTURAS
+# =======================
+def obtener_datos():
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, temperatura, humedad, fecha FROM datos ORDER BY id DESC LIMIT 10"
+    )
+    datos = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return datos
+
+# =======================
+# VALIDAR USUARIO
+# =======================
+def validar_usuario(usuario, password):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM usuarios WHERE usuario = %s AND password = %s",
+        (usuario, password)
+    )
+    valido = cursor.fetchone() is not None
+    cursor.close()
+    conn.close()
+    return valido
