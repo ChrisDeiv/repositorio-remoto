@@ -1,0 +1,38 @@
+import time
+import grovepi
+import requests
+
+# Configuración sensor
+DHT_PORT = 7        # Puerto digital D7
+DHT_TYPE = 0        # 0 = DHT11 | 1 = DHT22
+
+# Servidor local (misma Raspberry)
+SERVER_URL = "http://127.0.0.1:5000/api/data"
+
+print("Cliente iniciado: leyendo sensor y enviando datos")
+
+while True:
+    try:
+        temperatura, humedad = grovepi.dht(DHT_PORT, DHT_TYPE)
+
+        if temperatura is None or humedad is None:
+            print("Error leyendo el sensor")
+            time.sleep(5)
+            continue
+
+        data = {
+            "temperatura": round(temperatura, 2),
+            "humedad": round(humedad, 2)
+        }
+
+        response = requests.post(SERVER_URL, json=data)
+
+        if response.status_code == 200:
+            print("Datos enviados:", data)
+        else:
+            print("Error del servidor")
+
+    except Exception as e:
+        print("Error:", e)
+
+    time.sleep(5)
